@@ -1,0 +1,6 @@
+#!/bin/bash
+ip addr add 192.168.3.1/24 dev ens4
+ip addr add 192.168.2.1/24 dev ens5
+echo 1 > /proc/sys/net/ipv4/ip_forward
+iptables -A FORWARD -i ens4 -o ens5 -j ACCEPT
+iptables -A FORWARD -i ens5 -o ens4 -j ACCEPT

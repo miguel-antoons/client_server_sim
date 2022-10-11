@@ -1,0 +1,4 @@
+#!/bin/bash
+ip addr add 192.168.3.2/24 dev ens4
+echo 1 > /proc/sys/net/ipv4/ip_forward
+ip route add 192.168.2.0/24 via 192.168.3.1

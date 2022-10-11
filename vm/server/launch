@@ -1,0 +1,2 @@
+#!/bin/bash
+qemu-system-x86_64 -m 4096 -drive file=server.qcow2 -nographic -enable-kvm -netdev user,id=mynet0 -device virtio-net-pci,netdev=mynet0 -netdev socket,id=right,connect=:1235 -device virtio-net-pci,netdev=right

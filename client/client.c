@@ -36,19 +36,16 @@ void chat(int socketFD) {
 
 int main(int argc, char *argv[]) {
     int socketFD, connectionFD;
-    struct sockaddr_in server, client;
+    struct sockaddr_in server = {0};
     int serverPort = 2241;
 
     printf("Creating client socket...\n");
-    if (socketFD = socket(AF_INET, SOCK_STREAM, 0) < 0) {
+    if ((socketFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         printf("Socket creation failed.\nExiting...\n");
         exit(EXIT_FAILURE);
     } else {
         printf("Socket successfully created.\n");
     }
-
-    // set the server struct to 0
-    server = {0};
 
     // initialize the server struct
     //! address and port below will change to a variable int the future
@@ -57,7 +54,8 @@ int main(int argc, char *argv[]) {
     server.sin_port = htons(serverPort);
 
     printf("Trying to connect to the server...\n");
-    if (connect(socketFD, (struct sockaddr *)&server, sizeof(server)) != 0) {
+    int connectionResult = connect(socketFD, (struct sockaddr *)&server, sizeof(struct sockaddr_in));
+    if (connectionResult < 0) {
         printf("Connection with server failed\nExiting...\n");
         exit(EXIT_FAILURE);
     } else {

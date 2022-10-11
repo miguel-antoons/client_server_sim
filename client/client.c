@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
-#include <unistd.h>
-#include <arpa/inet.h>
+#include <string.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 
 
 void chat(int socketFD) {
@@ -37,6 +37,7 @@ void chat(int socketFD) {
 int main(int argc, char *argv[]) {
     int socketFD, connectionFD;
     struct sockaddr_in server, client;
+    int serverPort = 2241;
 
     printf("Creating client socket...\n");
     if (socketFD = socket(AF_INET, SOCK_STREAM, 0) < 0) {
@@ -47,16 +48,16 @@ int main(int argc, char *argv[]) {
     }
 
     // set the server struct to 0
-    bzero(&server, sizeof(server));
+    server = {0};
 
     // initialize the server struct
-    server.sin_family = AF_INET;
     //! address and port below will change to a variable int the future
     server.sin_addr.s_addr = inet_addr("192.168.2.2");
-    server.sin_port = htons("2241");
+    server.sin_family = AF_INET;
+    server.sin_port = htons(serverPort);
 
     printf("Trying to connect to the server...\n");
-    if (connect(socketFD, (struct sockaddr *) &server, sizeof(server)) != 0) {
+    if (connect(socketFD, (struct sockaddr *)&server, sizeof(server)) != 0) {
         printf("Connection with server failed\nExiting...\n");
         exit(EXIT_FAILURE);
     } else {

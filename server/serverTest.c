@@ -3,6 +3,37 @@
 #include<sys/socket.h>
 #include<arpa/inet.h>
 #include<unistd.h>
+
+// Function designed for chat between client and server.
+void chat(int connfd)
+{
+    char buff[80];
+    int n;
+    // infinite loop for chat
+    for (;;) {
+        bzero(buff, 80);
+   
+        // read the message from client and copy it in buffer
+        read(connfd, buff, sizeof(buff));
+        // print buffer which contains the client contents
+        printf("From client: %s\t To client : ", buff);
+        bzero(buff, 80);
+        n = 0;
+        // copy server message in the buffer
+        while ((buff[n++] = getchar()) != '\n')
+            ;
+   
+        // and send that buffer to client
+        write(connfd, buff, sizeof(buff));
+   
+        // if msg contains "Exit" then server exit and chat ended.
+        if (strncmp("exit", buff, 4) == 0) {
+            printf("Server Exit...\n");
+            break;
+        }
+    }
+}
+
 short SocketCreate(void)
 {
     short createSocket;
@@ -62,23 +93,10 @@ int main(int argc, char *argv[])
             return 1;
         }
         printf("Connection accepted\n");
-        memset(client_message, '\0', sizeof client_message);
-        memset(message, '\0', sizeof message);
-        //Receive a reply from the client
-        if( recv(sock, client_message, 80, 0) < 0)
-        {
-            printf("recv failed");
-            break;
-        }
-        printf("Client reply : %s\n",client_message);
 
-        strcpy(message,"Noice");
-        // Send some data
-        if( send(sock, message, strlen(message), 0) < 0)
-        {
-            printf("Send failed");
-            return 1;
-        }
+        chat(sock);
+
+        printf("Closing connection...\n");
         close(sock);
         //sleep(1);
     }

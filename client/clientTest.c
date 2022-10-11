@@ -4,6 +4,35 @@
 #include<sys/socket.h>
 #include<arpa/inet.h>
 #include<unistd.h>
+
+void chat(int socketFD) {
+    char messageBuffer[80];
+    int n;
+
+    while (1) {
+        bzero(messageBuffer, 80);
+        printf("Enter a new message : ");
+        n = 0;
+        
+        // let the user enter a message and wait until he hits enter
+        while((messageBuffer[n++] = getchar()) != '\n');
+
+        // write the message to the server
+        write(socketFD, messageBuffer, sizeof(messageBuffer));
+        bzero(messageBuffer, sizeof(messageBuffer));
+
+        // read response from the server
+        read(socketFD, messageBuffer, sizeof(messageBuffer));
+
+        printf("From server : %s", messageBuffer);
+
+        if ((strncmp(messageBuffer, "exit", 4)) == 0) {
+            printf("Exiting message loop...\n");
+            break;
+        }
+    }
+}
+
 //Create a Socket for server communication
 short SocketCreate(void)
 {
@@ -77,13 +106,9 @@ int main(int argc, char *argv[])
         return 1;
     }
     printf("Sucessfully conected with server\n");
-    printf("Enter the Message: ");
-    fgets(SendToServer, sizeof SendToServer, stdin);
-    //Send data to the server
-    SocketSend(hSocket, SendToServer, strlen(SendToServer));
-    //Received the data from the server
-    read_size = SocketReceive(hSocket, server_reply, 200);
-    printf("Server Response : %s\n\n",server_reply);
+    
+    chat(hSocket);
+
     close(hSocket);
     shutdown(hSocket,0);
     shutdown(hSocket,1);

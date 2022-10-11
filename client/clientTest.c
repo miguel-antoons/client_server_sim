@@ -16,7 +16,7 @@ short SocketCreate(void)
 int SocketConnect(int hSocket)
 {
     int iRetval=-1;
-    int ServerPort = 90190;
+    int ServerPort = 2241;
     struct sockaddr_in remote= {0};
     remote.sin_addr.s_addr = inet_addr("192.168.2.2"); //Local Host
     remote.sin_family = AF_INET;

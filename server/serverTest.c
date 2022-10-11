@@ -5,31 +5,31 @@
 #include<unistd.h>
 short SocketCreate(void)
 {
-    short hSocket;
+    short createSocket;
     printf("Create the socket\n");
-    hSocket = socket(AF_INET, SOCK_STREAM, 0);
-    return hSocket;
+    createSocket = socket(AF_INET, SOCK_STREAM, 0);
+    return createSocket;
 }
-int BindCreatedSocket(int hSocket)
+int BindSocket(int createSocket)
 {
     int iRetval=-1;
-    int ClientPort = 90190;
+    int clientPort = 2241;
     struct sockaddr_in  remote= {0};
     /* Internet address family */
     remote.sin_family = AF_INET;
     /* Any incoming interface */
     remote.sin_addr.s_addr = htonl(INADDR_ANY);
-    remote.sin_port = htons(ClientPort); /* Local port */
-    iRetval = bind(hSocket,(struct sockaddr *)&remote,sizeof(remote));
+    remote.sin_port = htons(clientPort); /* Local port */
+    iRetval = bind(createSocket,(struct sockaddr *)&remote,sizeof(remote));
     return iRetval;
 }
 int main(int argc, char *argv[])
 {
     int socket_desc, sock, clientLen, read_size;
     struct sockaddr_in server, client;
-    char client_message[200]= {0};
+    char client_message[80]= {0};
     char message[100] = {0};
-    const char *pMessage = "hello aticleworld.com";
+    const char *pMessage = "hello";
     //Create socket
     socket_desc = SocketCreate();
     if (socket_desc == -1)
@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
     }
     printf("Socket created\n");
     //Bind
-    if( BindCreatedSocket(socket_desc) < 0)
+    if( BindSocket(socket_desc) < 0)
     {
         //print the error message
         perror("bind failed.");
@@ -47,6 +47,7 @@ int main(int argc, char *argv[])
     }
     printf("bind done\n");
     //Listen
+    // 3 : Backlog -> Defines the maximum length for the queue of pending connections.
     listen(socket_desc, 3);
     //Accept and incoming connection
     while(1)
@@ -64,20 +65,14 @@ int main(int argc, char *argv[])
         memset(client_message, '\0', sizeof client_message);
         memset(message, '\0', sizeof message);
         //Receive a reply from the client
-        if( recv(sock, client_message, 200, 0) < 0)
+        if( recv(sock, client_message, 80, 0) < 0)
         {
             printf("recv failed");
             break;
         }
         printf("Client reply : %s\n",client_message);
-        if(strcmp(pMessage,client_message)==0)
-        {
-            strcpy(message,"Hi there !");
-        }
-        else
-        {
-            strcpy(message,"Invalid Message !");
-        }
+
+        strcpy(message,"Noice");
         // Send some data
         if( send(sock, message, strlen(message), 0) < 0)
         {
@@ -85,7 +80,7 @@ int main(int argc, char *argv[])
             return 1;
         }
         close(sock);
-        sleep(1);
+        //sleep(1);
     }
     return 0;
 }

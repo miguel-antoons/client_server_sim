@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
         }
         printf("Client reply : %s\n",client_message);
 
-        strcpy(message,"Noice");
+        strcpy(message,"Noice\n");
         // Send some data
         if( send(sock, message, strlen(message), 0) < 0)
         {

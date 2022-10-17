@@ -9,13 +9,13 @@
 #include <poll.h>
 
 
-void chat(int socketFD, int requests, int sleepMicroSeconds) {
+void chat(int socketFD, int requests) {
     // temporar dummy values, these will change in the future
     unsigned int fileNumber = 0;
     unsigned int matrixSize = 2;
     char key[4] = {1, 2, 3, 4};
     char response[4] = {0};
-    //time_t start[requests], end;
+    double interRequest = (1.0 / requests) * 1000000.0;
     struct timeval timeVal;
     double cpuTime, start[requests], end;
     struct pollfd pollFD[1];
@@ -57,6 +57,7 @@ void chat(int socketFD, int requests, int sleepMicroSeconds) {
             j++;
         }
         printf("After condition\n");
+        usleep(interRequest);
     }
 
     while (j < requests) {
@@ -64,7 +65,6 @@ void chat(int socketFD, int requests, int sleepMicroSeconds) {
         gettimeofday(&timeVal, NULL);
         end = (double)(timeVal.tv_sec) + ((double)(timeVal.tv_usec) / 1000000);
         cpuTime = end - start[j];
-        printf("%ld\n", timeVal.tv_usec);
 
         printf("Program took %lf seconds\n", cpuTime);
 
@@ -78,30 +78,6 @@ void chat(int socketFD, int requests, int sleepMicroSeconds) {
 
         j++;
     }
-    
-
-    // while (1) {
-    //     bzero(messageBuffer, 80);
-    //     printf("Enter a new message : ");
-    //     n = 0;
-        
-    //     // let the user enter a message and wait until he hits enter
-    //     while((messageBuffer[n++] = getchar()) != '\n');
-
-    //     // write the message to the server
-    //     write(socketFD, messageBuffer, sizeof(messageBuffer));
-    //     bzero(messageBuffer, sizeof(messageBuffer));
-
-    //     // read response from the server
-    //     read(socketFD, messageBuffer, sizeof(messageBuffer));
-
-    //     printf("From server : %s", messageBuffer);
-
-    //     if ((strncmp(messageBuffer, "exit", 4)) == 0) {
-    //         printf("Exiting message loop...\n");
-    //         break;
-    //     }
-    // }
 }
 
 int main(int argc, char *argv[]) {
@@ -133,7 +109,7 @@ int main(int argc, char *argv[]) {
     }
 
     //send messages here
-    chat(socketFD, 1000, 0);
+    chat(socketFD, 1000);
 
     // close the socket
     close(socketFD);

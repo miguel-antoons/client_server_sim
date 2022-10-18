@@ -11,10 +11,10 @@
 
 void chat(int socketFD, int requests) {
     // temporar dummy values, these will change in the future
-    unsigned int fileNumber = 0;
-    unsigned int matrixSize = 2;
+    char fileNumber = 0;
+    char matrixSize = 2;
     char key[4] = {1, 2, 3, 4};
-    char response[4] = {0};
+    unsigned char response[8 * 8] = {0};
     double interRequest = (1.0 / requests) * 1000000.0;
     struct timeval timeVal;
     double cpuTime, start[requests], end;
@@ -30,8 +30,8 @@ void chat(int socketFD, int requests) {
         gettimeofday(&timeVal, NULL);
         start[i] = (timeVal.tv_sec) + (timeVal.tv_usec) / 1000000;
 
-        write(socketFD, fileNumber, sizeof(fileNumber));
-        write(socketFD, matrixSize, sizeof(matrixSize));
+        write(socketFD, &fileNumber, sizeof(fileNumber));
+        write(socketFD, &matrixSize, sizeof(matrixSize));
         write(socketFD, key, sizeof(key));
         printf("Before condition\n");
 
@@ -48,7 +48,7 @@ void chat(int socketFD, int requests) {
 
             printf("Received following array from the server : [ ");
 
-            for (int i = 0; i < 4; i ++) {
+            for (int i = 0; i < 8 * 8; i ++) {
                 printf("%d ", response[i]);
             }
 
@@ -70,7 +70,7 @@ void chat(int socketFD, int requests) {
 
         printf("Received following array from the server : [ ");
 
-        for (int i = 0; i < 4; i ++) {
+        for (int i = 0; i < 8*8; i ++) {
             printf("%d ", response[i]);
         }
 

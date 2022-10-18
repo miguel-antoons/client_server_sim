@@ -28,35 +28,36 @@ void chat(int socketFD, int requests) {
     int j = 0;
     for (int i = 0; i < requests; i++) {
         gettimeofday(&timeVal, NULL);
-        start[i] = (timeVal.tv_sec) + (timeVal.tv_usec) / 1000000;
+        start[i] = (timeVal.tv_sec) + (timeVal.tv_usec) / 1000000.0;
 
         write(socketFD, &fileNumber, sizeof(fileNumber));
         write(socketFD, &matrixSize, sizeof(matrixSize));
         write(socketFD, key, sizeof(key));
-        printf("Before condition\n");
+        // printf("Before condition\n");
 
         bzero(response, sizeof(response));
         poll(pollFD, 1, 0);
         if (pollFD->revents & POLLIN) {
-            printf("Reading...\n");
+            // printf("Reading...\n");
             read(socketFD, response, sizeof(response));
             gettimeofday(&timeVal, NULL);
-            end = (double)(timeVal.tv_sec) + ((double)(timeVal.tv_usec) / 1000000);
+            end = (double)(timeVal.tv_sec) + (timeVal.tv_usec) / 1000000.0;
             cpuTime = end - start[j];
 
-            printf("Program took %lf seconds\n", cpuTime);
+            printf("\nSTART : %lf seconds\nEND : %lf seconds\n", start[j], end);
+            printf("Program took %lf seconds on client side for request number %d\n", cpuTime, j);
 
-            printf("Received following array from the server : [ ");
+            // printf("Received following array from the server : [ ");
 
-            for (int i = 0; i < 8 * 8; i ++) {
-                printf("%d ", response[i]);
-            }
+            // for (int i = 0; i < 8 * 8; i ++) {
+            //     printf("%d ", response[i]);
+            // }
 
-            printf("]\n\n");
+            // printf("]\n\n");
 
             j++;
         }
-        printf("After condition\n");
+        // printf("After condition\n");
         usleep(interRequest);
     }
 
@@ -66,15 +67,16 @@ void chat(int socketFD, int requests) {
         end = (double)(timeVal.tv_sec) + ((double)(timeVal.tv_usec) / 1000000);
         cpuTime = end - start[j];
 
-        printf("Program took %lf seconds\n", cpuTime);
+        printf("\nSTART : %lf seconds\nEND : %lf seconds\n", start[j], end);
+        printf("Program took %lf seconds on client side for request number %d\n", cpuTime, j);
 
-        printf("Received following array from the server : [ ");
+        // printf("Received following array from the server : [ ");
 
-        for (int i = 0; i < 8*8; i ++) {
-            printf("%d ", response[i]);
-        }
+        // for (int i = 0; i < 8*8; i ++) {
+        //     printf("%d ", response[i]);
+        // }
 
-        printf("]\n\n");
+        // printf("]\n\n");
 
         j++;
     }
@@ -109,7 +111,7 @@ int main(int argc, char *argv[]) {
     }
 
     //send messages here
-    chat(socketFD, 1000);
+    chat(socketFD, 100);
 
     // close the socket
     close(socketFD);

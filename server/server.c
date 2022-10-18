@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <signal.h>
 #include <unistd.h>
+#include <time.h>
 
 bool sig_caught = false;
 
@@ -78,25 +79,30 @@ void chat(int connfd, size_t fileSize, char *files[1000]) {
     char fileNumber = 0;
     char keySize = 0;
     char key[4] = {0};
+    clock_t start;
+    double cpuTime;
+    int counter = 0;
     // char response[fileSize] = {0};
 
     while (1) {
+        counter++;
         read(connfd, &fileNumber, sizeof(fileNumber));
         read(connfd, &keySize, sizeof(keySize));
         read(connfd, key, sizeof(key));
-        printf("\nkey size : %d\n", keySize);
-        printf("filenumber : %d\n", fileNumber);
+        //sleep(1);
+        start = clock();
 
-        for (int i = 0; i < keySize * keySize; i++) {
-            printf("%d ", key[i]);
-        }
-        printf("\n");
+        // printf("\nkey size : %d\n", keySize);
+        // printf("filenumber : %d\n", fileNumber);
+
+        // for (int i = 0; i < keySize * keySize; i++) {
+        //     printf("%d ", key[i]);
+        // }
+        // printf("\n");
 
         /* transform key to matrix  */
         unsigned char keyMatrix [keySize][keySize]; 
         vectorToMatrix((size_t)keySize, key, keyMatrix);
-
-        printf("\nPARAM ADDR : %p\n", files);
 
         /* transform file to matrix */
         unsigned char file [fileSize][fileSize]; 
@@ -125,6 +131,8 @@ void chat(int connfd, size_t fileSize, char *files[1000]) {
         // sleep(1);
 
         write(connfd, resultVector, sizeof(resultVector));
+        cpuTime = (double) (clock() - start) / CLOCKS_PER_SEC;
+        printf("\nServer calculations took %lf seconds for request number %d.\n", cpuTime, counter);
     }
 
     printf("\nClosed connection.\n");
@@ -184,7 +192,7 @@ int main(int argc, char *argv[]) {
     }
 
     // passively listen to incoming connections
-    if ((listen(socketFD, 10)) != 0) {
+    if ((listen(socketFD, 100)) != 0) {
         printf("Socket listen call has failed.\nExiting...\n");
         exit(EXIT_FAILURE);
     } else {

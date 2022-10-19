@@ -20,6 +20,13 @@ typedef struct {
     unsigned int requestStart;
 } child_t;
 
+typedef struct {
+    size_t  keySize;
+    int     rate;
+    int     time;
+    char*    addr;
+} Arguments;
+
 // get ranedom file nuimber and generate random key
 int getRandom(unsigned char *key, int keySize) {
     // set a seed according to the time
@@ -117,7 +124,27 @@ void parentThread(child_t *childInfo, pthread_t *threadIds, int nChilds) {
     }
 }
 
+void getArguments(Arguments *arguments,int argc, char *argv[]) {
+    /* Arguments */
+    if(argc != 8) return -1;
+    for(int i=1; i < argc - 2; i++) {
+        if(strcmp(argv[i], "-k") == 0) {
+            arguments->keySize = atoi(argv[i + 1]);
+        }
+        
+        if(strcmp(argv[i], "-r") == 0) {
+            arguments->rate     = atoi(argv[i + 1]);
+        } 
+
+        if(strcmp(argv[i], "-t") == 0) {
+            arguments->time     = atoi(argv[i + 1]);
+            arguments->addr    = argv[i + 2];
+        } 
+    }
+}
+
 int main(int argc, char *argv[]) {
+    Arguments arguments;
     int socketFDD;
     struct sockaddr_in server   = {0};
     int serverPort              = 2241;                                 // destination server port number
@@ -129,6 +156,9 @@ int main(int argc, char *argv[]) {
     pthread_t threadIds[nRequests];
     child_t childInfo[nRequests];
 
+    // get arguments 
+    getArguments(&arguments, argc, argv);
+    
     // initialize the server struct
     //! address and port below will change to a variable in the future
     server.sin_addr.s_addr  = inet_addr("192.168.2.2");

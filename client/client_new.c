@@ -21,7 +21,7 @@ typedef struct {
 } child_t;
 
 // get ranedom file nuimber and generate random key
-int getRandom(int *key, int keySize) {
+int getRandom(unsigned char *key, int keySize) {
     // set a seed according to the time
     srand(time(NULL));
     // generate a random key
@@ -41,21 +41,21 @@ unsigned int getCurrentTimeNano() {
 }
 
 // send a request to the server
-long int sendRequest(int socketFD, struct child_t *childInfo) {
-    int key[childInfo->keySize * childInfo->keySize];       // encryption key to send to the server
-    int fileNumber = getRandom(key, childInfo->keySize);    // get a file number and generate a random key
-    int errorCode, fileSize;                                // error code and file size the client will receive from the server
+long int sendRequest(int socketFD, child_t *childInfo) {
+    unsigned char key[childInfo->keySize * childInfo->keySize]; // encryption key to send to the server
+    int fileNumber = getRandom(key, childInfo->keySize);        // get a file number and generate a random key
+    int errorCode, fileSize;                                    // error code and file size the client will receive from the server
     
     // get the time the client sends a request
-    childInfo->requestStart = getCurrentTimeNano;
+    childInfo->requestStart = getCurrentTimeNano();
 
     // send requested file number, key size and key to the server
     write(socketFD, &fileNumber, sizeof(fileNumber));
-    write(socketFD, &keySize, sizeof(keySize));
+    write(socketFD, &childInfo->keySize, sizeof(childInfo->keySize));
     write(socketFD, key, sizeof(key));
 
     // get the error code returned by the server, return -1 if there is an error
-    read(socketFD, &errorCode, sizeof(response));
+    read(socketFD, &errorCode, sizeof(errorCode));
     if (errorCode < 0) return -1;
 
     // get the file szie from the server, return -1 if the fileSize is not valid
@@ -71,7 +71,8 @@ long int sendRequest(int socketFD, struct child_t *childInfo) {
 }
 
 // child thread sends one requests to the server and waits for a response
-void childThread(struct child_t *childInfo) {
+void *childThread(void *childPointer) {
+    child_t *childInfo = (child_t *) childPointer;
     int socketFD;   // file descriptor of the socket
 
     // create the socket and save its file descriptor
@@ -98,10 +99,10 @@ void childThread(struct child_t *childInfo) {
 
     // close the socket and exit the cild thread
     close(socketFD);
-    exit(0);
+    return NULL;
 }
 
-void parentThread(struct child_t *childInfo, pthread_t *threadIds, int nChilds) {
+void parentThread(child_t *childInfo, pthread_t *threadIds, int nChilds) {
     // wait for all the child threads to finish
     for (int i = 0; i < nChilds; i++) pthread_join(threadIds[i], NULL);
 
@@ -111,7 +112,7 @@ void parentThread(struct child_t *childInfo, pthread_t *threadIds, int nChilds) 
             "Child number %d sent a request at %u and it took the server %u seconds to respond.\n",
             childInfo[i].childNumber,
             childInfo[i].requestStart,
-            childTime[i].requestTime
+            childInfo[i].requestTime
         );
     }
 }
@@ -126,13 +127,13 @@ int main(int argc, char *argv[]) {
     int keySize                 = 2;                                    // size of the key to send to the server (key matrix will be keySize * keySize)
     const int nRequests         = requestPerSecond * programDurationSec;
     pthread_t threadIds[nRequests];
-    struct child_t childInfo[nRequests];
+    child_t childInfo[nRequests];
 
     // initialize the server struct
     //! address and port below will change to a variable in the future
-    server.sin_addr.s_addr = inet_addr("192.168.2.2");
-    server.sin_family = AF_INET;
-    server.sin_port = htons(serverPort);
+    server.sin_addr.s_addr  = inet_addr("192.168.2.2");
+    server.sin_family       = AF_INET;
+    server.sin_port         = htons(serverPort);
 
     // create the different child processes
     int i;
@@ -145,7 +146,7 @@ int main(int argc, char *argv[]) {
         usleep((int) interRequestTime);
     }
 
-    parentThread(&childInfo, threadIds, nRequests);
+    parentThread(childInfo, threadIds, nRequests);
 
     return 0;
 }

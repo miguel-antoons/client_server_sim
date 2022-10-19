@@ -22,7 +22,7 @@ typedef struct {
 
 typedef struct {
     size_t  keySize;
-    int     rate;
+    int     rate;     
     int     time;
     char*    addr;
 } Arguments;
@@ -148,11 +148,8 @@ int main(int argc, char *argv[]) {
     int socketFDD;
     struct sockaddr_in server   = {0};
     int serverPort              = 2241;                                 // destination server port number
-    int requestPerSecond        = 10;                                   // request per second the client must send
-    int programDurationSec      = 3;                                    // length in seconds the client must send requests
-    double interRequestTime     = 1.0 / requestPerSecond * 1000000.0;   // time between each request (in order to get 'requestPerSecond' requests per second)
-    int keySize                 = 2;                                    // size of the key to send to the server (key matrix will be keySize * keySize)
-    const int nRequests         = requestPerSecond * programDurationSec;
+    double interRequestTime     = 1.0 / arguments.rate * 1000000.0;   // time between each request (in order to get 'requestPerSecond' requests per second)                                  // size of the key to send to the server (key matrix will be keySize * keySize)
+    const int nRequests         = arguments.rate * arguments.time;
     pthread_t threadIds[nRequests];
     child_t childInfo[nRequests];
 
@@ -169,7 +166,7 @@ int main(int argc, char *argv[]) {
     int i;
     for (i = 0; i < nRequests; i++) {
         childInfo[i].serverInfo     = &server;
-        childInfo[i].keySize        = keySize;
+        childInfo[i].keySize        = arguments.keySize;
         childInfo[i].childNumber    = i;
 
         pthread_create(&threadIds[i], NULL, childThread, &childInfo[i]);

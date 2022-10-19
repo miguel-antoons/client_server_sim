@@ -7,6 +7,18 @@
 #include <time.h>
 #include <sys/time.h>
 #include <limits.h>
+#include <pthread.h>
+
+// struct with all the info the info to send and read a request
+// that is : a struct with the server info, keySize, childNumber,
+// requesTime field to write in and requestStart to write in.
+typedef struct {
+    struct sockaddr_in *serverInfo;
+    int keySize;
+    int childNumber;
+    unsigned int requestTime;
+    unsigned int requestStart;
+} child_t;
 
 // get ranedom file nuimber and generate random key
 int getRandom(int *key, int keySize) {
@@ -21,16 +33,21 @@ int getRandom(int *key, int keySize) {
     return ((int) rand() * 1000);
 }
 
-// send a request to the server
-double sendRequest(int socketFD, int keySize, double *start) {
-    int key[keySize * keySize];                 // encryption key to send to the server
-    int fileNumber = getRandom(key, keySize);   // get a file number and generate a random key
-    struct timeval timeVal;                     // declare time struct to get start and end time
-    int errorCode, fileSize;                    // error code and file size the client will receive from the server
+// get current time in nano seconds
+unsigned int getCurrentTimeNano() {
+    struct timespec timeVal;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &timeVal);
+    return (timeVal.tv_sec) * 1000000000 + (timeVal.tv_nsec);
+}
 
+// send a request to the server
+long int sendRequest(int socketFD, struct child_t *childInfo) {
+    int key[childInfo->keySize * childInfo->keySize];       // encryption key to send to the server
+    int fileNumber = getRandom(key, childInfo->keySize);    // get a file number and generate a random key
+    int errorCode, fileSize;                                // error code and file size the client will receive from the server
+    
     // get the time the client sends a request
-    gettimeofday(&timeVal, NULL);
-    *start = (timeVal.tv_sec) + (timeVal.tv_usec) / 1000000.0;
+    childInfo->requestStart = getCurrentTimeNano;
 
     // send requested file number, key size and key to the server
     write(socketFD, &fileNumber, sizeof(fileNumber));
@@ -50,15 +67,11 @@ double sendRequest(int socketFD, int keySize, double *start) {
     read(socketFD, response, sizeof(response));
 
     // get the end time of the request
-    gettimeofday(&timeVal, NULL);
-    end = (double)(timeVal.tv_sec) + (timeVal.tv_usec) / 1000000.0;
-
-    // return the total request time
-    return (end - *start);
+    return childInfo->requestStart - getCurrentTimeNano();
 }
 
 // child thread sends one requests to the server and waits for a response
-void childThread(sockaddr_in serverInfo, int keySize, int childNumber, double *times, double *start) {
+void childThread(struct child_t *childInfo) {
     int socketFD;   // file descriptor of the socket
 
     // create the socket and save its file descriptor
@@ -68,19 +81,19 @@ void childThread(sockaddr_in serverInfo, int keySize, int childNumber, double *t
     }
 
     // connect to the server with the socket
-    int connectionResult = connect(socketFD, (struct sockaddr *)&server, sizeof(struct sockaddr_in));
+    int connectionResult = connect(socketFD, (struct sockaddr *) childInfo->serverInfo, sizeof(struct sockaddr_in));
     if (connectionResult < 0) {
         printf("Connection with server failed\nExiting...\n");
         exit(EXIT_FAILURE);
     }
 
     // send a request and get the request time
-    times[childNumber] = sendRequest(socketFD, keySize, &start[childNumber]);
+    childInfo->requestTime = sendRequest(socketFD, childInfo);
 
     // if the returned time is not valid, set the time and start values for this process to 0
-    if (times[childNumber] < 0) {
-        times[childNumber] = 0;
-        start[childNumber] = 0;
+    if (childInfo->requestTime < 0) {
+        childInfo->requestStart = 0;
+        childInfo->requestTime  = 0;
     }
 
     // close the socket and exit the cild thread
@@ -88,26 +101,32 @@ void childThread(sockaddr_in serverInfo, int keySize, int childNumber, double *t
     exit(0);
 }
 
-void parentThread(int *times, double *start, int nChilds) {
+void parentThread(struct child_t *childInfo, pthread_t *threadIds, int nChilds) {
     // wait for all the child threads to finish
-    for (int i = 0; i < nChilds; i++) wait(NULL);
+    for (int i = 0; i < nChilds; i++) pthread_join(threadIds[i], NULL);
 
     // print the time results to the screen
     for (int i = 0; i < nChilds; i++) {
-        printf("Child number %d sent a request at %lf and it took the server %lf seconds to respond.\n", i, start[i], times[i]);
+        printf(
+            "Child number %d sent a request at %u and it took the server %u seconds to respond.\n",
+            childInfo[i].childNumber,
+            childInfo[i].requestStart,
+            childTime[i].requestTime
+        );
     }
 }
 
 int main(int argc, char *argv[]) {
-    int socketFD, connectionFD;
+    int socketFDD;
     struct sockaddr_in server   = {0};
     int serverPort              = 2241;                                 // destination server port number
     int requestPerSecond        = 10;                                   // request per second the client must send
     int programDurationSec      = 3;                                    // length in seconds the client must send requests
     double interRequestTime     = 1.0 / requestPerSecond * 1000000.0;   // time between each request (in order to get 'requestPerSecond' requests per second)
-    int keySize                 = 2                                     // size of the key to send to the server (key matrix will be keySize * keySize)
-    double times[requestPerSecond * programDurationSec];
-    double start[requestPerSecond * programDurationSec];
+    int keySize                 = 2;                                    // size of the key to send to the server (key matrix will be keySize * keySize)
+    const int nRequests         = requestPerSecond * programDurationSec;
+    pthread_t threadIds[nRequests];
+    struct child_t childInfo[nRequests];
 
     // initialize the server struct
     //! address and port below will change to a variable in the future
@@ -117,23 +136,16 @@ int main(int argc, char *argv[]) {
 
     // create the different child processes
     int i;
-    for (i = 0; i < requestPerSecond * programDurationSec; i++) {
-        processId = fork();
-        if (processId == 0) break;
+    for (i = 0; i < nRequests; i++) {
+        childInfo[i].serverInfo     = &server;
+        childInfo[i].keySize        = keySize;
+        childInfo[i].childNumber    = i;
+
+        pthread_create(&threadIds[i], NULL, childThread, &childInfo[i]);
         usleep((int) interRequestTime);
     }
 
-    // if the processId is a negative number, print an error message
-    if (processId < 0) {
-        write(1, "Error while forking", sizeof("Error while forking"));
-        exit(-1);
-    } else if (processId == 0) {
-        // if this is a child process, execute the child procedure
-        childThread(server, keySize, i, times, start);
-    } else {
-        // if this is the parent process, execute the parent procedure
-        parentThread(times, start, requestPerSecond * programDurationSec);
-    }
+    parentThread(&childInfo, threadIds, nRequests);
 
     return 0;
 }

@@ -20,6 +20,14 @@ typedef struct {
     unsigned int requestStart;
 } child_t;
 
+typedef struct {
+    size_t  keySize;
+    int     rate;     
+    int     time;
+    char    *addr;
+    int     port;
+} arguments_t;
+
 // get ranedom file nuimber and generate random key
 int getRandom(unsigned char *key, int keySize) {
     // set a seed according to the time
@@ -117,29 +125,52 @@ void parentThread(child_t *childInfo, pthread_t *threadIds, int nChilds) {
     }
 }
 
+void getArguments(arguments_t *arguments,int argc, char *argv[]) {
+    char *tmpAddr;
+    const char separator[2] = ":";
+    /* Arguments */
+    if(argc != 8) exit(EXIT_FAILURE);
+    for(int i=1; i < argc - 2; i++) {
+        if(strcmp(argv[i], "-k") == 0) {
+            arguments->keySize = atoi(argv[i + 1]);
+        }
+        
+        if(strcmp(argv[i], "-r") == 0) {
+            arguments->rate     = atoi(argv[i + 1]);
+        } 
+
+        if(strcmp(argv[i], "-t") == 0) {
+            arguments->time     = atoi(argv[i + 1]);
+            tmpAddr             = argv[i + 2];
+            arguments->addr = strtok(tmpAddr, separator);
+            arguments->port = atoi(strtok(NULL, separator));
+        } 
+    }
+}
+
 int main(int argc, char *argv[]) {
-    int socketFDD;
+    arguments_t arguments;
+    // get arguments 
+    getArguments(&arguments, argc, argv);
+    int socketFD;
     struct sockaddr_in server   = {0};
-    int serverPort              = 2241;                                 // destination server port number
-    int requestPerSecond        = 10000;                                   // request per second the client must send
-    int programDurationSec      = 3;                                    // length in seconds the client must send requests
-    double interRequestTime     = 1.0 / requestPerSecond * 1000000.0;   // time between each request (in order to get 'requestPerSecond' requests per second)
-    int keySize                 = 2;                                    // size of the key to send to the server (key matrix will be keySize * keySize)
-    const int nRequests         = requestPerSecond * programDurationSec;
+    double interRequestTime     = 1.0 / arguments.rate * 1000000.0;
+    const int nRequests         = arguments.rate * arguments.time;
     pthread_t threadIds[nRequests];
     child_t childInfo[nRequests];
 
+    
     // initialize the server struct
     //! address and port below will change to a variable in the future
-    server.sin_addr.s_addr  = inet_addr("192.168.2.2");
+    server.sin_addr.s_addr  = inet_addr(arguments.addr);
     server.sin_family       = AF_INET;
-    server.sin_port         = htons(serverPort);
+    server.sin_port         = htons(arguments.port);
 
     // create the different child processes
     int i;
     for (i = 0; i < nRequests; i++) {
         childInfo[i].serverInfo     = &server;
-        childInfo[i].keySize        = keySize;
+        childInfo[i].keySize        = arguments.keySize;
         childInfo[i].childNumber    = i;
 
         pthread_create(&threadIds[i], NULL, childThread, &childInfo[i]);

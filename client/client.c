@@ -16,7 +16,7 @@ void chat(int socketFD, int requests) {
     char key[4] = {1, 2, 3, 4};
     unsigned char response[8 * 8] = {0};
     double interRequest = (1.0 / requests) * 1000000.0;
-    struct timeval timeVal;
+    struct timespec timeVal;
     double cpuTime, start[requests], end;
     struct pollfd pollFD[1];
 
@@ -63,8 +63,8 @@ void chat(int socketFD, int requests) {
 
     while (j < requests) {
         read(socketFD, response, sizeof(response));
-        gettimeofday(&timeVal, NULL);
-        end = (double)(timeVal.tv_sec) + ((double)(timeVal.tv_usec) / 1000000);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &timeVal);
+        end = (long)(timeVal.tv_sec) * 1000000000 + ((long)(timeVal.tv_nsec));
         cpuTime = end - start[j];
 
         printf("\nSTART : %lf seconds\nEND : %lf seconds\n", start[j], end);

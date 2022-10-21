@@ -16,8 +16,8 @@ typedef struct {
     struct sockaddr_in *serverInfo;
     int keySize;
     int childNumber;
-    unsigned int requestTime;
-    unsigned int requestStart;
+    unsigned long long requestTime;
+    unsigned long long requestStart;
 } child_t;
 
 typedef struct {
@@ -42,23 +42,23 @@ int getRandom(unsigned char *key, int keySize) {
 }
 
 // get current time in nano seconds
-unsigned int getCurrentTimeNano() {
+unsigned long long getCurrentTimeNano() {
     struct timespec timeVal;
     clock_gettime(CLOCK_MONOTONIC_RAW, &timeVal);
-    return (timeVal.tv_sec) * 1000000000 + (timeVal.tv_nsec);
+    return (unsigned long long) (timeVal.tv_sec) * 1000000000 + (timeVal.tv_nsec);
 }
 
 void generateCSV(child_t *childInfo, int nChilds) {
     FILE *ftp;
-    ftp = fopen("stat.csv", "w+");
+    ftp = fopen("stat.csv", "w");
 
     for (int i = 0; i < nChilds; i++) {
-        fprintf(ftp, "%d, %u, %u\n", childInfo[i].childNumber, childInfo[i].requestStart, childInfo[i].requestTime);
+        fprintf(ftp, "%d, %llu, %llu\n", childInfo[i].childNumber, childInfo[i].requestStart, childInfo[i].requestTime);
     }
 }
 
 // send a request to the server
-long int sendRequest(int socketFD, child_t *childInfo) {
+void sendRequest(int socketFD, child_t *childInfo) {
     unsigned char key[childInfo->keySize * childInfo->keySize]; // encryption key to send to the server
     int fileNumber = getRandom(key, childInfo->keySize);        // get a file number and generate a random key
     int errorCode, fileSize;                                    // error code and file size the client will receive from the server
@@ -73,18 +73,18 @@ long int sendRequest(int socketFD, child_t *childInfo) {
 
     // get the error code returned by the server, return -1 if there is an error
     read(socketFD, &errorCode, sizeof(errorCode));
-    if (errorCode < 0) return -1;
+    if (errorCode < 0) childInfo->requestTime = -1;
 
     // get the file szie from the server, return -1 if the fileSize is not valid
     read(socketFD, &fileSize, sizeof(fileSize));
-    if (fileSize <= 0) return -1;
+    if (fileSize <= 0) childInfo->requestTime = -1;
 
     // get the file from the server
     int response[fileSize];
     read(socketFD, response, sizeof(response));
 
     // get the end time of the request
-    return childInfo->requestStart - getCurrentTimeNano();
+    childInfo->requestTime = getCurrentTimeNano() - childInfo->requestStart;
 }
 
 // child thread sends one requests to the server and waits for a response
@@ -106,7 +106,7 @@ void *childThread(void *childPointer) {
     }
 
     // send a request and get the request time
-    childInfo->requestTime = sendRequest(socketFD, childInfo);
+    sendRequest(socketFD, childInfo);
 
     // if the returned time is not valid, set the time and start values for this process to 0
     if (childInfo->requestTime < 0) {
@@ -128,7 +128,7 @@ void parentThread(child_t *childInfo, pthread_t *threadIds, int nChilds) {
     // print the time results to the screen
     for (int i = 0; i < nChilds; i++) {
         printf(
-            "Child number %d sent a request at %u and it took the server %u seconds to respond.\n",
+            "Child number %d sent a request at %llu and it took the server %llu nanoseconds to respond.\n",
             childInfo[i].childNumber,
             childInfo[i].requestStart,
             childInfo[i].requestTime

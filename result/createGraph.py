@@ -50,8 +50,11 @@ def generate_plot(
     if not len(x) or not len(y) or not len(x) == len(y):
         return
 
+    plt.rcParams['agg.path.chunksize'] = 10000
+    plt.rcParams.update({'font.size': 22})
     # generate the plot figure with correct dimensions
     plt.figure(num=figure_n, figsize=(width, height), dpi=dpi)
+    #plt.scatter(x, y)
     plt.plot(x, y)
 
     # set the titles and limits
@@ -89,4 +92,4 @@ if __name__ == '__main__':
             x.append(int(row[0]))
             y.append(int(row[2])) 
     
-    generate_plot(x, y, 'beau plot')
+    generate_plot(x, y, 'graph5', title='4 threads; key sise = 4; file size = 64; requests per seconds = 400; time = 3 seconds', y_title='Nano Seconds',  x_title='Request Number')

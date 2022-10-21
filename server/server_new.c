@@ -27,6 +27,8 @@ node_t  *head = NULL;
 size_t  fileSize    = 0;
 size_t  size        = 0;
 bool    sig_caught  = false;
+unsigned long long programStart;
+unsigned int counter = 0;
 
 pthread_cond_t  threadCond  = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t threadMutex = PTHREAD_MUTEX_INITIALIZER;
@@ -117,9 +119,10 @@ void encryption(size_t fileSize, size_t keySize, unsigned char key[][keySize], u
 
 void processData(int connectionFD, unsigned int keySize, unsigned int fileNumber, unsigned char *key) {
     unsigned int errorCode  = 0;
+    unsigned int matrixSize = fileSize * fileSize;
 
     /* transform key to matrix  */
-    unsigned char keyMatrix [keySize][keySize]; 
+    unsigned char keyMatrix[keySize][keySize]; 
     vectorToMatrix((size_t)keySize, key, keyMatrix);
 
     /* transform file to matrix */
@@ -127,18 +130,18 @@ void processData(int connectionFD, unsigned int keySize, unsigned int fileNumber
     vectorToMatrix(fileSize, files[fileNumber], file);
 
     /* encryption */
-    unsigned char result [fileSize][fileSize]; 
+    unsigned char result[fileSize][fileSize]; 
     bzero(result, sizeof(result));
     encryption(fileSize, (size_t)keySize, keyMatrix, file, result);
 
     /* encryption to vector */
-    unsigned char resultVector[fileSize * fileSize]; 
+    unsigned char resultVector[matrixSize]; 
     bzero(resultVector, sizeof(resultVector));
     matrixToVector((size_t) fileSize, result, resultVector);
 
     write(connectionFD, &errorCode, sizeof(errorCode));
-    write(connectionFD, &fileSize, sizeof(fileSize));
-    write(connectionFD, file, sizeof(file));
+    write(connectionFD, &matrixSize, sizeof(matrixSize));
+    write(connectionFD, resultVector, sizeof(resultVector));
 }
 
 void *childThread() {
@@ -151,12 +154,13 @@ void *childThread() {
         while (size == 0) pthread_cond_wait(&threadCond, &threadMutex);
 
         connectionFD = pop();
+        counter++;
         pthread_mutex_unlock(&threadMutex);
 
         read(connectionFD, &fileNumber, sizeof(fileNumber));
         read(connectionFD, &keySize, sizeof(keySize));
 
-        unsigned char key[keySize];;
+        unsigned char key[keySize * keySize];
         read(connectionFD, key, sizeof(key));
 
         processData(connectionFD, keySize, fileNumber, key);        

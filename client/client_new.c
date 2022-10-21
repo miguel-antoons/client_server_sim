@@ -16,8 +16,8 @@ typedef struct {
     struct sockaddr_in *serverInfo;
     int keySize;
     int childNumber;
-    unsigned long long requestTime;
     unsigned long long requestStart;
+    unsigned long long requestEnd;
 } child_t;
 
 typedef struct {
@@ -28,15 +28,16 @@ typedef struct {
     int     port;
 } arguments_t;
 
+unsigned int programStart;
+
 // get ranedom file nuimber and generate random key
 int getRandom(unsigned char *key, int keySize) {
     // set a seed according to the time
     srand(time(NULL));
     // generate a random key
-    for (int i = 0; i < keySize; i++) {
+    for (int i = 0; i < keySize * keySize; i++) {
         key[i] = (unsigned char) rand();
     }
-
     // return a random number between 0 and 1000
     return (rand() % 1000);
 }
@@ -53,7 +54,13 @@ void generateCSV(child_t *childInfo, int nChilds) {
     ftp = fopen("stat.csv", "w");
 
     for (int i = 0; i < nChilds; i++) {
-        fprintf(ftp, "%d, %llu, %llu\n", childInfo[i].childNumber, childInfo[i].requestStart, childInfo[i].requestTime);
+        fprintf(
+            ftp,
+            "%d, %llu, %llu\n",
+            childInfo[i].childNumber,
+            childInfo[i].requestStart,
+            childInfo[i].requestEnd - childInfo[i].requestStart
+        );
     }
 }
 
@@ -61,7 +68,8 @@ void generateCSV(child_t *childInfo, int nChilds) {
 void sendRequest(int socketFD, child_t *childInfo) {
     unsigned char key[childInfo->keySize * childInfo->keySize]; // encryption key to send to the server
     int fileNumber = getRandom(key, childInfo->keySize);        // get a file number and generate a random key
-    int errorCode, fileSize;                                    // error code and file size the client will receive from the server
+    int errorCode;                                    // error code and file size the client will receive from the server
+    unsigned int fileSize;
     
     // get the time the client sends a request
     childInfo->requestStart = getCurrentTimeNano();
@@ -73,18 +81,25 @@ void sendRequest(int socketFD, child_t *childInfo) {
 
     // get the error code returned by the server, return -1 if there is an error
     read(socketFD, &errorCode, sizeof(errorCode));
-    if (errorCode < 0) childInfo->requestTime = -1;
+    if (errorCode < 0) childInfo->requestStart = -1;
 
     // get the file szie from the server, return -1 if the fileSize is not valid
     read(socketFD, &fileSize, sizeof(fileSize));
-    if (fileSize <= 0) childInfo->requestTime = -1;
+    if (fileSize <= 0) childInfo->requestStart = -1;
 
     // get the file from the server
-    int response[fileSize];
+    unsigned char response[fileSize];
     read(socketFD, response, sizeof(response));
 
     // get the end time of the request
-    childInfo->requestTime = getCurrentTimeNano() - childInfo->requestStart;
+    childInfo->requestEnd = getCurrentTimeNano();
+}
+
+void calculateServerRate(child_t *childInfo, int nRequests) {
+    double meanRequestRate = (double) nRequests / (double) (childInfo[nRequests - 1].requestEnd - childInfo[0].requestStart);
+    meanRequestRate *= 1000000000;
+
+    printf("MEAN REQUEST RATE : %lf\n", meanRequestRate);
 }
 
 // child thread sends one requests to the server and waits for a response
@@ -109,9 +124,9 @@ void *childThread(void *childPointer) {
     sendRequest(socketFD, childInfo);
 
     // if the returned time is not valid, set the time and start values for this process to 0
-    if (childInfo->requestTime < 0) {
+    if (childInfo->requestStart < 0) {
         childInfo->requestStart = 0;
-        childInfo->requestTime  = 0;
+        childInfo->requestEnd   = 0;
     }
 
     // close the socket and exit the cild thread
@@ -131,7 +146,7 @@ void parentThread(child_t *childInfo, pthread_t *threadIds, int nChilds) {
             "Child number %d sent a request at %llu and it took the server %llu nanoseconds to respond.\n",
             childInfo[i].childNumber,
             childInfo[i].requestStart,
-            childInfo[i].requestTime
+            childInfo[i].requestEnd - childInfo[i].requestStart
         );
     }
 }
@@ -189,6 +204,7 @@ int main(int argc, char *argv[]) {
     }
 
     parentThread(childInfo, threadIds, nRequests);
+    calculateServerRate(childInfo, nRequests);
 
     return 0;
 }

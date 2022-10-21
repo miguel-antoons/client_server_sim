@@ -48,6 +48,15 @@ unsigned int getCurrentTimeNano() {
     return (timeVal.tv_sec) * 1000000000 + (timeVal.tv_nsec);
 }
 
+void generateCSV(child_t *childInfo, int nChilds) {
+    FILE *ftp;
+    ftp = fopen("stat.csv", "w+");
+
+    for (int i = 0; i < nChilds; i++) {
+        fprintf(ftp, "%d, %u, %u\n", childInfo[i].childNumber, childInfo[i].requestStart, childInfo[i].requestTime);
+    }
+}
+
 // send a request to the server
 long int sendRequest(int socketFD, child_t *childInfo) {
     unsigned char key[childInfo->keySize * childInfo->keySize]; // encryption key to send to the server
@@ -113,6 +122,8 @@ void *childThread(void *childPointer) {
 void parentThread(child_t *childInfo, pthread_t *threadIds, int nChilds) {
     // wait for all the child threads to finish
     for (int i = 0; i < nChilds; i++) pthread_join(threadIds[i], NULL);
+
+    generateCSV(childInfo, nChilds);
 
     // print the time results to the screen
     for (int i = 0; i < nChilds; i++) {
